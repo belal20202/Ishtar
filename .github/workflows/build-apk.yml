@@ -1,0 +1,36 @@
+name: Build APK
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+env:
+  GODOT_VERSION: "4.3"
+jobs:
+  android:
+    runs-on: ubuntu-22.04
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup
+        run: |
+          mkdir -p ~/.local/share/godot/export_templates ~/.config/godot
+          if [ ! -d ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable ]; then
+            mv /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable ~/.local/share/godot/export_templates/
+          fi
+          keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android -keystore ~/debug.keystore -storepass android -dname "CN=Android Debug,O=Android,C=US" -validity 9999 -deststoretype pkcs12
+          printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\n' > ~/.config/godot/editor_settings-4.3.tres
+          echo "export/android/android_sdk_path = \"${ANDROID_HOME:-/usr/lib/android-sdk}\"" >> ~/.config/godot/editor_settings-4.3.tres
+          echo "export/android/java_sdk_path = \"${JAVA_HOME:-/usr/lib/jvm/java-17-openjdk-amd64}\"" >> ~/.config/godot/editor_settings-4.3.tres
+          echo "export/android/debug_keystore = \"$HOME/debug.keystore\"" >> ~/.config/godot/editor_settings-4.3.tres
+          echo 'export/android/debug_keystore_user = "androiddebugkey"' >> ~/.config/godot/editor_settings-4.3.tres
+          echo 'export/android/debug_keystore_pass = "android"' >> ~/.config/godot/editor_settings-4.3.tres
+      - name: Export
+        run: |
+          mkdir -p build
+          godot --headless --import || true
+          godot --headless --export-debug "Android" build/ishtar.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ishtar-apk
+          path: build/ishtar.apk
