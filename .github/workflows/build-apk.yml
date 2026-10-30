@@ -1,10 +1,13 @@
 name: Build APK
+
 on:
   push:
     branches: [main]
   workflow_dispatch:
+
 env:
   GODOT_VERSION: "4.3"
+
 jobs:
   android:
     runs-on: ubuntu-22.04
@@ -12,21 +15,17 @@ jobs:
       image: barichello/godot-ci:4.3
     steps:
       - uses: actions/checkout@v4
+
       - name: Arabic font
         run: |
           mkdir -p assets/fonts
           if [ ! -f assets/fonts/arabic.ttf ]; then
-            apt-get update -qq || true
-            apt-get install -y -qq fonts-noto-core || true
-            f=$(find /usr/share/fonts -iname 'NotoSansArabic*.ttf' 2>/dev/null | sort | head -1)
-            if [ -n "$f" ]; then
-              cp "$f" assets/fonts/arabic.ttf
-              echo "Font installed: $f"
-            else
-              echo "No Arabic font found; the app will use the system font"
-            fi
+            apt-get update -qq
+            apt-get install -y -qq fonts-dejavu-core
+            cp /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf assets/fonts/arabic.ttf
           fi
-      - name: Setup
+
+      - name: Setup Godot and Android
         run: |
           mkdir -p ~/.local/share/godot/export_templates ~/.config/godot
           if [ ! -d ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable ]; then
@@ -39,12 +38,17 @@ jobs:
           echo "export/android/debug_keystore = \"$HOME/debug.keystore\"" >> ~/.config/godot/editor_settings-4.3.tres
           echo 'export/android/debug_keystore_user = "androiddebugkey"' >> ~/.config/godot/editor_settings-4.3.tres
           echo 'export/android/debug_keystore_pass = "android"' >> ~/.config/godot/editor_settings-4.3.tres
-      - name: Export
+
+      - name: Import project
+        run: godot --headless --import || true
+
+      - name: Export APK
         run: |
           mkdir -p build
-          godot --headless --import || true
           godot --headless --export-debug "Android" build/ishtar.apk
-      - uses: actions/upload-artifact@v4
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
           name: ishtar-apk
           path: build/ishtar.apk
