@@ -12,6 +12,20 @@ jobs:
       image: barichello/godot-ci:4.3
     steps:
       - uses: actions/checkout@v4
+      - name: Arabic font
+        run: |
+          mkdir -p assets/fonts
+          if [ ! -f assets/fonts/arabic.ttf ]; then
+            apt-get update -qq || true
+            apt-get install -y -qq fonts-noto-core || true
+            f=$(find /usr/share/fonts -iname 'NotoSansArabic*.ttf' 2>/dev/null | sort | head -1)
+            if [ -n "$f" ]; then
+              cp "$f" assets/fonts/arabic.ttf
+              echo "Font installed: $f"
+            else
+              echo "No Arabic font found; the app will use the system font"
+            fi
+          fi
       - name: Setup
         run: |
           mkdir -p ~/.local/share/godot/export_templates ~/.config/godot
